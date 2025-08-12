@@ -1,0 +1,4 @@
+# Azure Web App startup command
+# This file tells Azure how to start your Next.js application
+
+npm start
