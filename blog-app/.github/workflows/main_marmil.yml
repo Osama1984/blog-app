@@ -22,16 +22,20 @@ jobs:
         run: |
           Write-Host "Current directory:"
           Get-Location
-          Write-Host "Directory contents:"
+          Write-Host "Repository root contents:"
           Get-ChildItem
-          Write-Host "Looking for package.json:"
-          if (Test-Path "package.json") {
-            Write-Host "✓ package.json found!"
-            Get-Content "package.json" | Select-Object -First 5
+          Write-Host "Looking for blog-app folder:"
+          if (Test-Path "blog-app") {
+            Write-Host "✓ blog-app folder found!"
+            Write-Host "Contents of blog-app folder:"
+            Get-ChildItem "blog-app"
+            if (Test-Path "blog-app/package.json") {
+              Write-Host "✓ package.json found in blog-app folder!"
+            } else {
+              Write-Host "✗ package.json not found in blog-app folder"
+            }
           } else {
-            Write-Host "✗ package.json not found in current directory"
-            Write-Host "Searching for package.json files:"
-            Get-ChildItem -Recurse -Name "package.json" -ErrorAction SilentlyContinue
+            Write-Host "✗ blog-app folder not found"
           }
         shell: powershell
 
@@ -39,8 +43,11 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '22.x'
+          cache: 'npm'
+          cache-dependency-path: blog-app/package-lock.json
 
       - name: npm install, build, and test
+        working-directory: blog-app
         run: |
           npm install
           npm run build --if-present
@@ -50,7 +57,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: blog-app/
 
   deploy:
     runs-on: ubuntu-latest
