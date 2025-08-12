@@ -18,27 +18,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug directory structure
-        run: |
-          echo "Current directory:"
-          pwd
-          echo "Repository root contents:"
-          ls -la
-          echo "Looking for blog-app folder:"
-          if [ -d "blog-app" ]; then
-            echo "✓ blog-app folder found!"
-            echo "Contents of blog-app folder:"
-            ls -la blog-app/
-            if [ -f "blog-app/package.json" ]; then
-              echo "✓ package.json found in blog-app folder!"
-            else
-              echo "✗ package.json not found in blog-app folder"
-            fi
-          else
-            echo "✗ blog-app folder not found"
-          fi
-        shell: bash
-
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
