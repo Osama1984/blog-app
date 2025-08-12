@@ -16,46 +16,35 @@ jobs:
       contents: read #This is required for actions/checkout
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - name: Debug directory structure
+        run: |
+          Write-Host "Current directory:"
+          Get-Location
+          Write-Host "Directory contents:"
+          Get-ChildItem
+          Write-Host "Looking for package.json:"
+          if (Test-Path "package.json") {
+            Write-Host "✓ package.json found!"
+            Get-Content "package.json" | Select-Object -First 5
+          } else {
+            Write-Host "✗ package.json not found in current directory"
+            Write-Host "Searching for package.json files:"
+            Get-ChildItem -Recurse -Name "package.json" -ErrorAction SilentlyContinue
+          }
+        shell: powershell
 
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
           node-version: '22.x'
-          cache: 'npm'
 
-      - name: Debug - Check directory structure
+      - name: npm install, build, and test
         run: |
-          Write-Host "Current working directory:"
-          Get-Location
-          Write-Host "Contents of current directory:"
-          Get-ChildItem
-          if (Test-Path "package.json") {
-            Write-Host "✓ package.json found in root directory!"
-          } else {
-            Write-Host "✗ package.json not found in root directory"
-            exit 1
-          }
-        shell: powershell
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build application
-        run: npm run build
-
-      - name: Run tests (if available)
-        run: npm run test --if-present
-        continue-on-error: true
-
-      - name: Create deployment package
-        run: |
-          # Remove development dependencies and files not needed for production
-          Remove-Item -Recurse -Force .git -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force .github -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force node_modules/.cache -ErrorAction SilentlyContinue
-        shell: powershell
+          npm install
+          npm run build --if-present
+          npm run test --if-present
       
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
