@@ -1,0 +1,446 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
+import { toast } from 'react-hot-toast'
+import MDEditor from '@uiw/react-md-editor'
+import FileUpload from '@/components/ui/FileUpload'
+import { PostImage } from '@prisma/client'
+
+interface Category {
+  id: string
+  name: string
+  slug: string
+  description?: string
+  color?: string
+  image?: string
+  posts: { id: string }[]
+}
+
+interface Tag {
+  id: string
+  name: string
+  slug: string
+  posts: { id: string }[]
+}
+
+interface FileUploadResult {
+  url: string
+  name: string
+  size: number
+}
+
+interface UploadResponse {
+  success: boolean
+  files: FileUploadResult[]
+}
+
+export default function CreatePost() {
+  const router = useRouter()
+  const { data: session } = useSession()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formData, setFormData] = useState({
+    title: '',
+    content: '',
+    excerpt: '',
+    categoryIds: [] as string[],
+    tagIds: [] as string[],
+    featured: false,
+    status: 'DRAFT'
+  })
+  const [postImages, setPostImages] = useState<PostImage[]>([])
+  const [coverImageFiles, setCoverImageFiles] = useState<Array<{url: string, name: string}>>([])
+  const [additionalImageFiles, setAdditionalImageFiles] = useState<Array<{url: string, name: string}>>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [tags, setTags] = useState<Tag[]>([])
+
+  interface PostImage {
+    id?: string
+    url: string
+    alt: string
+    caption: string
+    order: number
+  }
+}
+
+export default function CreatePost() {
+  const { data: session } = useSession()
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    title: '',
+    excerpt: '',
+    content: '',
+    coverImage: '',
+    status: 'DRAFT' as 'DRAFT' | 'PUBLISHED',
+    categoryIds: [] as string[],
+    tagIds: [] as string[]
+  })
+  const [postImages, setPostImages] = useState<PostImage[]>([])
+  const [coverImageFiles, setCoverImageFiles] = useState<Array<{url: string, name: string}>>([])
+  const [additionalImageFiles, setAdditionalImageFiles] = useState<Array<{url: string, name: string}>>([])
+  const [categories, setCategories] = useState<any[]>([])
+  const [tags, setTags] = useState<any[]>([])
+
+  // Fetch categories and tags
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [categoriesRes, tagsRes] = await Promise.all([
+          fetch('/api/admin/categories'),
+          fetch('/api/admin/tags')
+        ])
+
+        const [categoriesData, tagsData] = await Promise.all([
+          categoriesRes.json(),
+          tagsRes.json()
+        ])
+
+        if (categoriesData.success) setCategories(categoriesData.data)
+        if (tagsData.success) setTags(tagsData.data)
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  const handleCoverImageUpload = async (files: File[]) => {
+    if (files.length === 0) return
+
+    try {
+      const formDataUpload = new FormData()
+      files.forEach(file => formDataUpload.append('files', file))
+      formDataUpload.append('type', 'posts')
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formDataUpload
+      })
+
+      const result = await response.json()
+      if (result.success && result.files.length > 0) {
+        const uploadedFile = result.files[0]
+        setFormData(prev => ({ ...prev, coverImage: uploadedFile.url }))
+        setCoverImageFiles([{ url: uploadedFile.url, name: uploadedFile.name }])
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Failed to upload cover image')
+    }
+  }
+
+  const handleCoverImageRemove = () => {
+    setFormData(prev => ({ ...prev, coverImage: '' }))
+    setCoverImageFiles([])
+  }
+
+  const handleAdditionalImagesUpload = async (files: File[]) => {
+    if (files.length === 0) return
+
+    try {
+      const formDataUpload = new FormData()
+      files.forEach(file => formDataUpload.append('files', file))
+      formDataUpload.append('type', 'posts')
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formDataUpload
+      })
+
+      const result: UploadResponse = await response.json()
+      if (result.success) {
+        const newImages: PostImage[] = result.files.map((file: FileUploadResult, index: number) => ({
+          url: file.url,
+          alt: '',
+          caption: '',
+          order: postImages.length + index
+        }))
+        setPostImages(prev => [...prev, ...newImages])
+        setAdditionalImageFiles(prev => [...prev, ...result.files.map((f: FileUploadResult) => ({ url: f.url, name: f.name }))])
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error('Failed to upload additional images')
+    }
+  }
+
+  const handleAdditionalImageRemove = (index: number) => {
+    setPostImages(prev => prev.filter((_, i) => i !== index))
+    setAdditionalImageFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!formData.title || !formData.content) {
+      toast.error('Title and content are required')
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const postData = {
+        ...formData,
+        images: postImages
+      }
+
+      const response = await fetch('/api/posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(postData),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Post created successfully!')
+        router.push('/dashboard/posts')
+      } else {
+        toast.error(data.error || 'Failed to create post')
+      }
+    } catch (error) {
+      console.error('Error creating post:', error)
+      toast.error('Failed to create post')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    })
+  }
+
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
+    setFormData(prev => ({ ...prev, categoryIds: selectedOptions }))
+  }
+
+  const handleTagChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
+    setFormData(prev => ({ ...prev, tagIds: selectedOptions }))
+  }
+
+  if (!session) {
+    return <div>Please sign in to create a post.</div>
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h1 className="text-lg font-semibold text-gray-900">Create New Post</h1>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div>
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+              Title
+            </label>
+            <input
+              type="text"
+              name="title"
+              id="title"
+              value={formData.title}
+              onChange={handleChange}
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 border"
+              placeholder="Enter post title"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="excerpt" className="block text-sm font-medium text-gray-700">
+              Excerpt
+            </label>
+            <textarea
+              name="excerpt"
+              id="excerpt"
+              rows={3}
+              value={formData.excerpt}
+              onChange={handleChange}
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 border"
+              placeholder="Brief description of your post"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="content" className="block text-sm font-medium text-gray-700">
+              Content
+            </label>
+            <div className="mt-1">
+              <MDEditor
+                value={formData.content}
+                onChange={(val?: string) => setFormData(prev => ({ ...prev, content: val || '' }))}
+                preview="edit"
+                height={400}
+              />
+            </div>
+          </div>
+
+          {/* Cover Image Upload */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Cover Image
+            </label>
+            <FileUpload
+              onFilesSelected={handleCoverImageUpload}
+              onFilesRemoved={handleCoverImageRemove}
+              existingFiles={coverImageFiles}
+              accept={{ 'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp'] }}
+              maxFiles={1}
+              maxSize={10 * 1024 * 1024}
+              className="w-full"
+            />
+          </div>
+
+          {/* Additional Images Upload */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Additional Images
+            </label>
+            <FileUpload
+              onFilesSelected={handleAdditionalImagesUpload}
+              onFilesRemoved={handleAdditionalImageRemove}
+              existingFiles={additionalImageFiles}
+              accept={{ 'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.webp'] }}
+              maxFiles={10}
+              maxSize={5 * 1024 * 1024}
+              multiple
+              className="w-full"
+            />
+            {postImages.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <p className="text-sm text-gray-600">Image Details:</p>
+                {postImages.map((img, index) => (
+                  <div key={index} className="p-3 border border-gray-200 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <input
+                        type="text"
+                        placeholder="Alt text"
+                        value={img.alt}
+                        onChange={(e) => {
+                          const updatedImages = [...postImages]
+                          updatedImages[index].alt = e.target.value
+                          setPostImages(updatedImages)
+                        }}
+                        className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Caption"
+                        value={img.caption}
+                        onChange={(e) => {
+                          const updatedImages = [...postImages]
+                          updatedImages[index].caption = e.target.value
+                          setPostImages(updatedImages)
+                        }}
+                        className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Order"
+                        value={img.order}
+                        onChange={(e) => {
+                          const updatedImages = [...postImages]
+                          updatedImages[index].order = parseInt(e.target.value) || 0
+                          setPostImages(updatedImages)
+                        }}
+                        className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Categories */}
+          <div>
+            <label htmlFor="categories" className="block text-sm font-medium text-gray-700">
+              Categories
+            </label>
+            <select
+              name="categories"
+              id="categories"
+              multiple
+              value={formData.categoryIds}
+              onChange={handleCategoryChange}
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 border"
+            >
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">Hold Ctrl (or Cmd) to select multiple categories</p>
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label htmlFor="tags" className="block text-sm font-medium text-gray-700">
+              Tags
+            </label>
+            <select
+              name="tags"
+              id="tags"
+              multiple
+              value={formData.tagIds}
+              onChange={handleTagChange}
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 border"
+            >
+              {tags.map((tag) => (
+                <option key={tag.id} value={tag.id}>
+                  {tag.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">Hold Ctrl (or Cmd) to select multiple tags</p>
+          </div>
+
+          <div>
+            <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+              Status
+            </label>
+            <select
+              name="status"
+              id="status"
+              value={formData.status}
+              onChange={handleChange}
+              className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 border"
+            >
+              <option value="DRAFT">Draft</option>
+              <option value="PUBLISHED">Published</option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-end space-x-4">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Creating...' : 'Create Post'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}

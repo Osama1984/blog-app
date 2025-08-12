@@ -1,0 +1,250 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and user management
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  password      String?   // Hashed password for credentials login
+  image         String?
+  profileImage  String?   // Profile image URL
+  bio           String?
+  phone         String?   // Phone number
+  
+  // Address fields
+  address       String?   // Street address
+  zipCode       String?   // ZIP code
+  state         String?   // US State
+  
+  role          Role      @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime? // Soft delete timestamp
+
+  // Relations
+  accounts Account[]
+  sessions Session[]
+  posts    Post[]
+  comments Comment[]
+  likes    Like[]
+
+  @@map("users")
+}
+
+// NextAuth.js required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
+
+// Blog-specific models
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  color       String?  @default("#6366f1")
+  image       String?  // Category image URL
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  posts PostCategory[]
+
+  @@map("categories")
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  posts PostTag[]
+
+  @@map("tags")
+}
+
+model Post {
+  id          String      @id @default(cuid())
+  title       String
+  slug        String      @unique
+  excerpt     String?
+  content     String      @db.Text
+  coverImage  String?     // Main cover image URL
+  status      PostStatus  @default(DRAFT)
+  featured    Boolean     @default(false)
+  views       Int         @default(0)  // Post view count
+  publishedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  authorId    String
+
+  // Relations
+  author     User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  categories PostCategory[]
+  tags       PostTag[]
+  comments   Comment[]
+  likes      Like[]
+  images     PostImage[]   // Related images for the post
+
+  @@map("posts")
+}
+
+// Model for storing multiple images related to a post
+model PostImage {
+  id        String   @id @default(cuid())
+  postId    String
+  url       String   // Image URL
+  alt       String?  // Alt text for accessibility
+  caption   String?  // Image caption
+  order     Int      @default(0) // Order for displaying images
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("post_images")
+}
+
+model PostCategory {
+  id         String @id @default(cuid())
+  postId     String
+  categoryId String
+
+  post     Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, categoryId])
+  @@map("post_categories")
+}
+
+model PostTag {
+  id     String @id @default(cuid())
+  postId String
+  tagId  String
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, tagId])
+  @@map("post_tags")
+}
+
+model Comment {
+  id        String        @id @default(cuid())
+  content   String        @db.Text
+  status    CommentStatus @default(PENDING)
+  parentId  String?
+  postId    String
+  authorId  String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relations
+  post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies  Comment[] @relation("CommentReplies")
+
+  @@map("comments")
+}
+
+model Like {
+  id       String @id @default(cuid())
+  postId   String
+  userId   String
+  createdAt DateTime @default(now())
+
+  // Relations
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@map("likes")
+}
+
+model Newsletter {
+  id          String           @id @default(cuid())
+  email       String           @unique
+  status      SubscribeStatus  @default(SUBSCRIBED)
+  subscribedAt DateTime        @default(now())
+  unsubscribedAt DateTime?
+
+  @@map("newsletter")
+}
+
+// Enums
+enum Role {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CommentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SubscribeStatus {
+  SUBSCRIBED
+  UNSUBSCRIBED
+}
