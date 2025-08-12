@@ -1,4 +1,4 @@
-import { PrismaClient, Role, PostStatus } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
 import { faker } from '@faker-js/faker'
 import bcrypt from 'bcryptjs'
 
@@ -72,7 +72,7 @@ async function main() {
         emailVerified: faker.datatype.boolean() ? faker.date.past() : null,
         image: faker.image.avatar(),
         bio: faker.lorem.sentence({ min: 5, max: 15 }),
-        role: i < 5 ? Role.ADMIN : Role.USER, // First 5 users are admins
+        role: i < 5 ? "ADMIN" : "USER", // First 5 users are admins
         createdAt: faker.date.past({ years: 2 }),
         updatedAt: faker.date.recent()
       }
@@ -135,7 +135,7 @@ async function main() {
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
     const author = faker.helpers.arrayElement(users)
     const publishedAt = faker.datatype.boolean() ? faker.date.past({ years: 1 }) : null
-    const status = publishedAt ? PostStatus.PUBLISHED : PostStatus.DRAFT
+    const status = publishedAt ? "PUBLISHED" : "DRAFT"
     
     const post = await prisma.post.create({
       data: {

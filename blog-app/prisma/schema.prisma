@@ -9,7 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlserver"
   url      = env("DATABASE_URL")
 }
 
@@ -30,7 +30,7 @@ model User {
   zipCode       String?   // ZIP code
   state         String?   // US State
   
-  role          Role      @default(USER)
+  role          String      @default("USER")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime? // Soft delete timestamp
@@ -122,7 +122,7 @@ model Post {
   excerpt     String?
   content     String      @db.Text
   coverImage  String?     // Main cover image URL
-  status      PostStatus  @default(DRAFT)
+  status      String  @default("DRAFT")
   featured    Boolean     @default(false)
   views       Int         @default(0)  // Post view count
   publishedAt DateTime?
@@ -185,7 +185,7 @@ model PostTag {
 model Comment {
   id        String        @id @default(cuid())
   content   String        @db.Text
-  status    CommentStatus @default(PENDING)
+  status    String @default("PENDING")
   parentId  String?
   postId    String
   authorId  String
@@ -194,8 +194,8 @@ model Comment {
 
   // Relations
   post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  author   User      @relation(fields: [authorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   replies  Comment[] @relation("CommentReplies")
 
   @@map("comments")
@@ -209,7 +209,7 @@ model Like {
 
   // Relations
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([postId, userId])
   @@map("likes")
@@ -218,33 +218,9 @@ model Like {
 model Newsletter {
   id          String           @id @default(cuid())
   email       String           @unique
-  status      SubscribeStatus  @default(SUBSCRIBED)
+  status      String  @default("SUBSCRIBED")
   subscribedAt DateTime        @default(now())
   unsubscribedAt DateTime?
 
   @@map("newsletter")
-}
-
-// Enums
-enum Role {
-  USER
-  ADMIN
-  MODERATOR
-}
-
-enum PostStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
-}
-
-enum CommentStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-enum SubscribeStatus {
-  SUBSCRIBED
-  UNSUBSCRIBED
 }
