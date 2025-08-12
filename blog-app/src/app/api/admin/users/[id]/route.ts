@@ -132,12 +132,10 @@ export async function DELETE(
   try {
     const { id } = await params
 
-    // Check if user exists and is not already deleted
+    // Check if user exists
     const existingUser = await prisma.user.findUnique({
       where: { 
-        id,
-        // @ts-expect-error - deletedAt field exists in schema but not yet in types
-        deletedAt: null // Only find non-deleted users
+        id
       }
     })
 
@@ -152,7 +150,6 @@ export async function DELETE(
     await prisma.user.update({
       where: { id },
       data: {
-        // @ts-expect-error - deletedAt field exists in schema but not yet in types
         deletedAt: new Date()
       }
     })

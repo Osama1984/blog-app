@@ -14,10 +14,6 @@ const userSchema = z.object({
 export async function GET() {
   try {
     const users = await prisma.user.findMany({
-      where: {
-        // @ts-expect-error - deletedAt field exists in schema but not yet in types
-        deletedAt: null // Only show non-deleted users
-      },
       orderBy: { createdAt: 'desc' },
       include: {
         posts: {

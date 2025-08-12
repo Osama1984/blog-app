@@ -409,6 +409,7 @@ export default function PostsTable() {
 
       {/* Post Form Modal */}
       <PostForm
+        // @ts-expect-error - Type mismatch between Post and PostFormData
         post={selectedPost}
         isOpen={isFormOpen}
         onClose={() => {
