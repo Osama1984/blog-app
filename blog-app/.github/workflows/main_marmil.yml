@@ -20,24 +20,24 @@ jobs:
 
       - name: Debug directory structure
         run: |
-          Write-Host "Current directory:"
-          Get-Location
-          Write-Host "Repository root contents:"
-          Get-ChildItem
-          Write-Host "Looking for blog-app folder:"
-          if (Test-Path "blog-app") {
-            Write-Host "✓ blog-app folder found!"
-            Write-Host "Contents of blog-app folder:"
-            Get-ChildItem "blog-app"
-            if (Test-Path "blog-app/package.json") {
-              Write-Host "✓ package.json found in blog-app folder!"
-            } else {
-              Write-Host "✗ package.json not found in blog-app folder"
-            }
-          } else {
-            Write-Host "✗ blog-app folder not found"
-          }
-        shell: powershell
+          echo "Current directory:"
+          pwd
+          echo "Repository root contents:"
+          ls -la
+          echo "Looking for blog-app folder:"
+          if [ -d "blog-app" ]; then
+            echo "✓ blog-app folder found!"
+            echo "Contents of blog-app folder:"
+            ls -la blog-app/
+            if [ -f "blog-app/package.json" ]; then
+              echo "✓ package.json found in blog-app folder!"
+            else
+              echo "✗ package.json not found in blog-app folder"
+            fi
+          else
+            echo "✗ blog-app folder not found"
+          fi
+        shell: bash
 
       - name: Set up Node.js version
         uses: actions/setup-node@v3
