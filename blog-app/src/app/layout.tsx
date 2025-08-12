@@ -6,6 +6,7 @@ import { Footer } from '@/components/layout/Footer'
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { Toaster } from "react-hot-toast";
 import { SessionProvider } from "next-auth/react";
+import "@/lib/env-check"; // Check environment variables
 
 const inter = Inter({
   subsets: ["latin"],
