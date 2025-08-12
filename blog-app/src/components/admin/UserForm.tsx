@@ -1,9 +1,11 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Role } from '@prisma/client'
 import FileUpload from '@/components/ui/FileUpload'
 import { US_STATES } from '@/lib/constants/states'
+
+// Define Role type as string (since we removed enum)
+type Role = string
 
 // Define extended user type to match our schema
 interface ExtendedUser {
